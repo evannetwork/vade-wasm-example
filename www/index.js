@@ -1,3 +1,4 @@
-import * as wasm from "hello-wasm-pack";
+import * as wasm from "vade-wasm-example";
 
 wasm.greet();
+
