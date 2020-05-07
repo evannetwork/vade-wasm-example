@@ -1,69 +1,112 @@
-<div align="center">
+# vade-wasm-example
+## About this project
+This project is an example about how to use the [`vade`] library in wasm projects.
 
-  <h1><code>wasm-pack-template</code></h1>
+This readme describes how to create such a project on basis of the [Rust and WebAssembly] book and the project itself can be used as a starting point for trying out vade in wasm with zero implementation effort or as a reference when building own projects.
 
-  <strong>A template for kick starting a Rust and WebAssembly project using <a href="https://github.com/rustwasm/wasm-pack">wasm-pack</a>.</strong>
+## Using vade in WASM
+[`vade`] itself is used in the Rust part of your projects and its results can then be exposed to the JavaScript part of your application.
 
-  <p>
-    <a href="https://travis-ci.org/rustwasm/wasm-pack-template"><img src="https://img.shields.io/travis/rustwasm/wasm-pack-template.svg?style=flat-square" alt="Build Status" /></a>
-  </p>
+As already mentioned, we're following the tutorial from [Rust and WebAssembly] book. This section is intended for getting started from scratch. If you already have a project you can go to the next section.
 
-  <h3>
-    <a href="https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html">Tutorial</a>
-    <span> | </span>
-    <a href="https://discordapp.com/channels/442252698964721669/443151097398296587">Chat</a>
-  </h3>
+### Creating the hello world project
 
-  <sub>Built with 🦀🕸 by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a></sub>
-</div>
+Check if you have all requirements available as described in the [setup section].
 
-## About
+After this follow the steps described in [Hello, World!], we named our project `vade-wasm-example` instead of `wasm-game-of-life`, but followed the other steps as documented.
 
-[**📚 Read this template tutorial! 📚**][template-docs]
+Your project should now resemble the project from the tag ["new-wasm-project"]. We made the following minor changes to the code:
 
-This template is designed for compiling Rust libraries into WebAssembly and
-publishing the resulting package to NPM.
+- we deleted the folder `www/.git` to keep the code in a single project
+- we added `package-lock.json` to the gitignore file `www/.gitignore` to keep the lock file out of the project
 
-Be sure to check out [other `wasm-pack` tutorials online][tutorials] for other
-templates and usages of `wasm-pack`.
+### Adding vade to you WASM project (Rust part)
+For this project we will use the [`VcResolver`] from [`vade-evan`] to fetch and validate VC documents from evan.network.
 
-[tutorials]: https://rustwasm.github.io/docs/wasm-pack/tutorials/index.html
-[template-docs]: https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html
+#### Dependencies
+Open your in your `Cargo.toml`, these new `[dependencies]`:
 
-## 🚴 Usage
-
-### 🐑 Use `cargo generate` to Clone this Template
-
-[Learn more about `cargo generate` here.](https://github.com/ashleygwilliams/cargo-generate)
-
+```toml
+js-sys = "0.3.39"
+vade = "0.0.6"
+vade-evan = "0.0.5"
+wasm-bindgen-futures = "0.4.12"
 ```
-cargo generate --git https://github.com/rustwasm/wasm-pack-template.git --name my-project
-cd my-project
+(Or check for newer versions on crates.io.)
+
+#### Add vade to your WASM file
+Open your `src/lib.rs` file and add new use declarations:
+
+```rust
+use vade::Vade;
+use vade_evan::plugin::rust_vcresolver_evan::RustVcResolverEvan;
+use wasm_bindgen_futures::future_to_promise;
 ```
 
-### 🛠️ Build with `wasm-pack build`
+`Vade` and `RustVcResolverEvan` are here for the obvious reason that we want to use them and `future_to_promise` are here because we will be converting the future from the vade request to a JavaScript promise.
 
+#### Getting our VC document in Rust
+
+Add this example function, to fetch a VC document.
+
+```rust
+#[wasm_bindgen]
+pub fn get_vc_document(vc_name: JsValue) -> js_sys::Promise  {
+    future_to_promise(async move {
+        // create new vade instance with VC resolver
+        let rde = RustVcResolverEvan::new();
+        let mut vade = Vade::new();
+        vade.register_vc_resolver(Box::from(rde));
+    
+        // fetch document
+        let vc_document = vade.get_vc_document(&vc_name.as_string().unwrap()).await.unwrap();
+
+        // convert to JsValue and return
+        Ok(JsValue::from(&vc_document))
+    })
+}
 ```
+
+To build your project again and to update the WASM files run:
+
+```rust
 wasm-pack build
 ```
 
-### 🔬 Test in Headless Browsers with `wasm-pack test`
+With this the Rust side should be covered, so let's head to the JavaScript part.
 
+#### Use our new function in JavaScript
+
+Open `www/index.js` and add a block, that uses the new function:
+
+```js
+(async () => {
+    // fetch VC
+    const vc = prompt("vc", "vc:evan:testcore:0x75956ef9b3ea7d7230cf007b8ee042bcaa2a4dad8c043fa77ecf51262ee4f7a9");
+    const vcDocument = await wasm.get_vc_document(vc);
+    
+    // render VC
+    const div = document.createElement('div');
+    div.style['white-space'] = 'pre-wrap';
+    div.innerText = JSON.stringify(JSON.parse(vcDocument), null, 2);
+    document.body.appendChild(div);
+    console.dir(JSON.parse(vcDocument));
+})();
 ```
-wasm-pack test --headless --firefox
-```
 
-### 🎁 Publish to NPM with `wasm-pack publish`
+We also removed the `wasm.greet();` part, one popup should be enough.
 
-```
-wasm-pack publish
-```
+Your project should now resemble the state from the tag ["vade-in-wasm-project"].
 
-## 🔋 Batteries Included
+When you reload your page, you should get a prompt asking for a VC ID. You can enter a VC ID from evan.network testcore or just use the suggested VC ID. After this the VC is fetched via the wasm module and then rendered in the browser window. As you might guess from the outstanding prettiness of the web page, the author of this guide is not a front-end developer ;).
 
-* [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) for communicating
-  between WebAssembly and JavaScript.
-* [`console_error_panic_hook`](https://github.com/rustwasm/console_error_panic_hook)
-  for logging panic messages to the developer console.
-* [`wee_alloc`](https://github.com/rustwasm/wee_alloc), an allocator optimized
-  for small code size.
+With this you should now have learned how to add [`vade`] as a wasm module to your web project, how the basic flow works and how to convert the futures from [`vade`] to JavaScript promises.
+
+["new-wasm-project"]: https://github.com/evannetwork/vade-wasm-example/tree/new-wasm-project
+["vade-in-wasm-project"]: https://github.com/evannetwork/vade-wasm-example/tree/vade-in-wasm-project
+[`vade-evan`]: https://docs.rs/vade-evan
+[`vade`]: https://docs.rs/vade
+[`VcResolver`]: https://docs.rs/vade-evan/*/vade_evan/plugin/rust_vcresolver_evan/struct.RustVcResolverEvan.html
+[Hello, World!]: https://rustwasm.github.io/book/game-of-life/hello-world.html
+[Rust and WebAssembly]: https://rustwasm.github.io/book
+[setup section]: https://rustwasm.github.io/book/game-of-life/setup.html
