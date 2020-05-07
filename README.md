@@ -24,7 +24,7 @@ Your project should now resemble the project from the tag ["new-wasm-project"]. 
 For this project we will use the [`VcResolver`] from [`vade-evan`] to fetch and validate VC documents from evan.network.
 
 #### Dependencies
-Open your in your `Cargo.toml`, these new `[dependencies]`:
+Open your in your `Cargo.toml` and add these new `[dependencies]`:
 
 ```toml
 js-sys = "0.3.39"
