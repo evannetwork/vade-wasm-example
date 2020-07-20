@@ -1,4 +1,9 @@
 # vade-wasm-example
+
+**:warning: This example was designed for [vade 0.0.6](https://crates.io/crates/vade/0.0.6) :warning:**
+
+An example version, that supports [vade >= 0.0.7](https://crates.io/crates/vade/0.0.7) will be released soon, but for now use this example only with [vade 0.0.6](https://crates.io/crates/vade/0.0.6).
+
 ## About this project
 This project is an example about how to use the [`vade`] library in wasm projects.
 
