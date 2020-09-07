@@ -1,7 +1,10 @@
 mod utils;
 
 use vade::Vade;
-use vade_evan::plugin::rust_vcresolver_evan::RustVcResolverEvan;
+use vade_evan::{
+    resolver::{ResolverConfig, SubstrateDidResolverEvan},
+    signing::{LocalSigner, Signer},
+};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
@@ -12,7 +15,7 @@ use wasm_bindgen_futures::future_to_promise;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-extern {
+extern "C" {
     fn alert(s: &str);
 }
 
@@ -22,17 +25,26 @@ pub fn greet() {
 }
 
 #[wasm_bindgen]
-pub fn get_vc_document(vc_name: JsValue) -> js_sys::Promise  {
+pub fn get_did_document(did: JsValue) -> js_sys::Promise {
     future_to_promise(async move {
-        // create new vade instance with VC resolver
-        let rde = RustVcResolverEvan::new();
+        // create new vade instance with DID resolver
+        let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
+        let rde = SubstrateDidResolverEvan::new(ResolverConfig {
+            signer,
+            target: "13.69.59.185".to_string(),
+        });
+
         let mut vade = Vade::new();
-        vade.register_vc_resolver(Box::from(rde));
-    
+        vade.register_plugin(Box::from(rde));
         // fetch document
-        let vc_document = vade.get_vc_document(&vc_name.as_string().unwrap()).await.unwrap();
+        let results = vade.did_resolve(&did.as_string().unwrap()).await.unwrap();
+
+        if results.len() != 1 {
+            return Err(JsValue::from("could not get DID document"));
+        }
+        let did_document = results[0].as_ref().unwrap();
 
         // convert to JsValue and return
-        Ok(JsValue::from(&vc_document))
+        Ok(JsValue::from(did_document))
     })
 }
